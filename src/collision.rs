@@ -7,7 +7,7 @@ pub struct CollisionPlugin;
 impl Plugin for CollisionPlugin {
     fn build(&self, app: &mut App) {
         // Register the collision detection system in the Update schedule
-        // app.add_systems(Update, detect_collisions);
+        app.add_systems(Update, detect_collisions);
     }
 }
 
