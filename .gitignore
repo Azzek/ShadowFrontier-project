@@ -1,0 +1,8 @@
+/target/
+/**/*.rs.bk
+**/Cargo.lock
+/assets/*
+.vscode/
+/build/
+.env
+/target/doc/
