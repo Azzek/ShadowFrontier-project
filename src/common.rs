@@ -98,6 +98,11 @@ pub struct Target {
     pub target:Entity
 }
 
+#[derive(Component, Clone, Copy)]
+pub struct MoveTo {
+    pub loc: Vec3
+}
+
 #[derive(Component)]
 pub struct Stats{
     pub hp: i32,

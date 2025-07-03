@@ -129,7 +129,7 @@ fn spawn_player(
             },
         ),
         Player,
-        Transform::from_scale(Vec3::splat(2.0)),              // Set size
+        Transform::from_scale(Vec3::splat(2.3)),              // Set size
         Velocity(Vec3::ZERO),                                 // No initial velocity
         Collider { radius: 30.0 },                            // Collider size
         PlayerAttackTimer {
@@ -193,11 +193,9 @@ fn control_player(
             }
         }
 
-        println!("{}, {}", keyboard.pressed(KeyCode::Space), attack_timer.timer.finished());
         // player attack
         if keyboard.pressed(KeyCode::Space) && attack_timer.timer.finished() {
             attack_timer.timer.reset();
-            println!("xd");
             new_state = match anim.state {
                 AnimationState::RunUp | AnimationState::IdleUp => AnimationState::AttackUp,
                 AnimationState::RunDown | AnimationState::IdleDown => AnimationState::AttackDown,

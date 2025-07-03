@@ -6,16 +6,15 @@ use bevy::{
 
 use crate::common::{Player, Stats};
 
-pub struct UiPlugin;
+pub struct GuiPlugin;
 
 // Marker component for identifying the HP bar node
 #[derive(Component)]
 struct Hpbar; 
 
 // Add the setup and update_ui systems to the Update schedule
-impl Plugin for UiPlugin {
+impl Plugin for GuiPlugin {
     fn build(&self, app: &mut App) {
-
         app.add_systems(Update, (setup, uptade_ui));
     }
 }

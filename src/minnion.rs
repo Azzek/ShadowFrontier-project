@@ -1,6 +1,6 @@
-use std::{ time::Duration };
-use crate::{common::{Animation, AnimationIndices, AnimationSet, AnimationState, AttackEvent, Collider, HitReactionTimer, Player, Stats, Target}, enemy::Enemy};
-use bevy::{platform::collections::HashMap, prelude::*, window::PrimaryWindow};
+use std::{ clone, time::Duration };
+use crate::{common::{Animation, AnimationIndices, AnimationSet, AnimationState, AttackEvent, Collider, HitReactionTimer, MoveTo, Player, Stats, Target}, enemy::Enemy};
+use bevy::{platform::collections::HashMap, prelude::*, state::commands, window::PrimaryWindow};
 
 pub struct MinnionsPlugin;
 
@@ -11,13 +11,6 @@ pub struct  Minnion;
 pub struct SelectionBox {
     pub start: Option<Vec2>,
     pub end: Option<Vec2>,
-}
-
-#[derive(Component)]
-enum Minnion_mode {
-    Neutral,
-    Passiv,
-    Aggresiv
 }
 
 #[derive(Component)]
@@ -33,6 +26,12 @@ pub struct MinnionHealthBar;
 #[derive(Resource)]
 struct MinnionSpawnTimer(Timer);
 
+#[derive(Component, PartialEq)]
+pub enum MinnionMode {
+    Neutral,
+    Aggresiv,
+    Passiv
+}
 
 impl Plugin for MinnionsPlugin {
     fn build(&self, app: &mut App) {
@@ -107,8 +106,6 @@ fn spawn_minnion(
                 (AnimationState::Hurt,   (hurt_tex.clone(), hurt_layout.clone(), AnimationIndices { first: 0, last: 2 })),
             ]);
 
-            let animation_indices = AnimationIndices { first: 0, last: 5 };
-
             let animation_set = AnimationSet{ animations: anim_map };
 
             let mut hit_timer = HitReactionTimer {
@@ -140,6 +137,7 @@ fn spawn_minnion(
                 Collider { radius: 22. },
                 Stats { hp:100, max_hp:100, attack:25 },
                 hit_timer,
+                MinnionMode::Neutral,
                 MinnionAttackTimer {
                     timer: Timer::from_seconds(0.6, TimerMode::Repeating),
                 },
@@ -151,8 +149,6 @@ fn spawn_minnion(
                     ..default()
                 };
                 
-            
-
             commands.entity(minnion_ent)
             .with_children(| parent | {
                 parent.spawn((hp_bar, MinnionHealthBar, Transform::from_xyz(0., 15., 0.)));
@@ -168,7 +164,6 @@ fn update_hp_bars(
     mut bars: Query<&mut Sprite, With<MinnionHealthBar>>,
 ) {
     for (stats, children) in &parents {
-        println!("{}", stats.hp);
         for child in children.iter() {
             if let Ok(mut sprite) = bars.get_mut(child) {
                 let health_ratio = stats.hp as f32 / stats.max_hp as f32;
@@ -181,12 +176,16 @@ fn update_hp_bars(
 
 fn hit_reaction(
     mut commands: Commands,
-    mut query: Query<(Entity, &Stats, &mut HitReactionTimer), With<Minnion>>,
+    mut query: Query<(Entity, &Stats, &mut HitReactionTimer, &mut MinnionMode), With<Minnion>>,
+    
     time: Res<Time>,
 ) {
-    for (enemy, stats, mut reaction_timer) in query.iter_mut() {
+    for (enemy, stats, mut reaction_timer,mut mode) in query.iter_mut() {
         reaction_timer.timer.tick(time.delta());
 
+        if reaction_timer.timer.just_finished() && *mode == MinnionMode::Neutral {
+            *mode = MinnionMode::Aggresiv;
+        }
         if stats.hp <= 0 {
             commands.entity(enemy).despawn();
             continue;
@@ -197,11 +196,14 @@ fn hit_reaction(
 
 // Finds target for minnion 
 fn find_enemy_target(
-    minnions: Query<(Entity, &Transform), (With<Minnion>, (Without<Player>, Without<Enemy>, Without<Target>))>,
+    minnions: Query<(Entity, &Transform, &MinnionMode), (With<Minnion>, (Without<Player>, Without<Enemy>, Without<Target>))>,
     targets: Query<(Entity, &Transform), (With<Enemy>, Without<Minnion>, Without<Player>)>,
     mut commands: Commands,
 ) {
-    for (minnion, minnion_tf) in minnions.iter() {
+    for (minnion, minnion_tf, mode) in minnions.iter() {
+        if *mode != MinnionMode::Aggresiv {
+            continue;
+        }
         let mut closest_target: Option<(Entity, f32)> = None;
 
         for (target, target_tf) in targets.iter() {
@@ -250,95 +252,114 @@ fn drop_target(
 
 
 fn move_minnions_tow_target(
-    mut minnions: Query<(&mut Transform, &MinnionAttackTimer, Option<&Target>), With<Minnion>>,
+    mut minnions: Query<(Entity, &mut Transform, &MinnionAttackTimer, Option<&Target>, Option<&mut MoveTo>), With<Minnion>>,
     targets: Query<&Transform, (Without<Minnion>, Without<Player>)>,
     time: Res<Time>,
+    mut commands: Commands
 ) {
-    for (mut minnion_tf, attack_timer, maybe_target) in minnions.iter_mut() {
+    for (mn, mut minnion_tf, attack_timer, maybe_target, maybe_mt) in minnions.iter_mut() {
         // If the enemy has a target assigned
-        if let Some(target) = maybe_target {
-            println!("target");
-            if let Ok(target_tf) = targets.get(target.target) {
-                // It only moves if it doesn't attack
-                if !attack_timer.timer.finished() {
-                    let direction = (target_tf.translation - minnion_tf.translation).normalize_or_zero();
-                    
-                    // Movement towards the target
-                    minnion_tf.translation += direction * time.delta_secs() * 100.0;
+       let move_loc: Option<Vec3> = maybe_mt
+        .as_ref()
+        .map(|mt| mt.loc)
+        .or_else(|| {
+            maybe_target.and_then(|target| {
+                targets.get(target.target).ok().map(|tf| tf.translation)
+            })
+        });
 
-                    // Rotate the sprite towards the target
-                    if direction.x.abs() > 0.1 {
-                        minnion_tf.scale.x = direction.x.signum() * 4.0;
-                    }
+        if let Some(move_to) = move_loc {
+            if !attack_timer.timer.finished() {
+                let direction = (move_to - minnion_tf.translation).normalize_or_zero();
+                
+                // Movement towards the target
+                minnion_tf.translation += direction * time.delta_secs() * 100.0;
+
+                // Rotate the sprite towards the target
+                if direction.x.abs() > 0.1 {
+                    minnion_tf.scale.x = direction.x.signum() * 4.0;
                 }
             }
         }
-    }
+        if let Some(mt) = maybe_mt {
+            if minnion_tf.translation.distance(mt.loc) < 30. {
+                commands.entity(mn).remove::<MoveTo>();
+            }
+        }
+    } 
 }
 
 
 fn change_animation_state(
-    q: Query<(&HitReactionTimer, &mut Animation, &Transform, Option<&Target>), With<Minnion>>,
+    q: Query<(&HitReactionTimer, &mut Animation, &Transform, Option<&Target>, Option<&MoveTo>, &MinnionMode), With<Minnion>>,
     targets_q: Query<&Transform, (With<Enemy>, Without<Minnion>)>
 ) {
 
-    for (hit_timer,mut anim, tf,  maybe_target) in q {
+    for (hit_timer,mut anim, tf,  maybe_target, maybe_mt, mode) in q {
         if !hit_timer.timer.finished() {
             anim.state = AnimationState::Hurt;
             continue;
         }
 
-        if let Some(target) = maybe_target {
-            if let Ok(target_tf) = targets_q.get(target.target) {
-
-                if tf.translation.distance(target_tf.translation) < 110. {
-                    anim.state = AnimationState::Attack01;
-                    continue;
-                } else {
-                    anim.state = AnimationState::Walk;
-                    continue;
-                }
+        if let Some(mt) = maybe_mt {
+            if tf.translation.distance(mt.loc) > 30. {
+                anim.state = AnimationState::Walk;
+                continue;
             }
         }
 
+        if *mode == MinnionMode::Aggresiv {
+            if let Some(target) = maybe_target {
+                if let Ok(target_tf) = targets_q.get(target.target) {
+
+                    if tf.translation.distance(target_tf.translation) < 110. {
+                        anim.state = AnimationState::Attack01;
+                        continue;
+                    } else {
+                        anim.state = AnimationState::Walk;
+                        continue;
+                    }
+                }
+            }
+        }
         anim.state = AnimationState::Idle;
     }
 }
 
 
-/// Handles minnions attack logic when in range of the player
 fn attack(
-    mut enemy_q: Query<(Entity, &Transform, &mut MinnionAttackTimer, &HitReactionTimer, Option<&Target>), With<Minnion>>,
+    mut enemy_q: Query<(Entity, &Transform, &mut MinnionAttackTimer, &HitReactionTimer, Option<&Target>, &MinnionMode), With<Minnion>>,
     targets_q: Query<&Transform, With<Enemy>>,
     time: Res<Time>,
     mut attack_events: EventWriter<AttackEvent>,
 ) {
+    for (enemy_ent, enemy_tf, mut cooldown, hit_timer, maybe_target, mode) in enemy_q.iter_mut() {
+        if *mode == MinnionMode::Aggresiv {
+            if let Some(target) = maybe_target {
+                cooldown.timer.tick(time.delta());
+                if let Ok(target_tf) = targets_q.get(target.target) {
+                    let dist = enemy_tf.translation.distance(target_tf.translation);
 
-    for (enemy_ent, enemy_tf, mut cooldown, hit_timer, maybe_target) in enemy_q.iter_mut() {
+                    if hit_timer.timer.finished() {
+                        if dist < 110.  {
 
-        if let Some(target) = maybe_target {
-            cooldown.timer.tick(time.delta());
-            if let Ok(target_tf) = targets_q.get(target.target) {
-                let dist = enemy_tf.translation.distance(target_tf.translation);
-
-                if hit_timer.timer.finished() {
-                    if dist < 110.  {
-
-                        if cooldown.timer.just_finished() {
-                            attack_events.write(AttackEvent {
-                                attacker: enemy_ent,
-                                target: target.target,
-                                damage: 30,
-                            });
-                            cooldown.timer.reset();
+                            if cooldown.timer.just_finished() {
+                                attack_events.write(AttackEvent {
+                                    attacker: enemy_ent,
+                                    target: target.target,
+                                    damage: 30,
+                                });
+                                cooldown.timer.reset();
+                            }
                         }
                     }
                 }
             }
         }
-        
     }
-    
 }
+
+
+
 
 

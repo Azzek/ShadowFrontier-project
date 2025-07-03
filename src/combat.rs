@@ -19,7 +19,6 @@ fn handle_attack_events(
     // Iterate over all attack events triggered this frame
     for event in events.read() {
         // Attempt to get the target's Stats component using the entity ID from the event
-        println!("sdsads");
         if let Ok((mut target_stats, mut reaction_timer)) = query.get_mut(event.target) {
             // Apply the damage by subtracting from current HP
             target_stats.hp -= event.damage;
