@@ -5,6 +5,11 @@ enum MinionType {
     Soldier
 }
 
+#[derive(Clone)]
+pub struct Item {
+    pub id: String,
+    pub name: String,
+}
 
 #[derive(Component, Default)]
 pub struct Velocity(pub Vec3);

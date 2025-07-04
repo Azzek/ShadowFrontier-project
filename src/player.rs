@@ -1,24 +1,41 @@
 use bevy::platform::collections::HashMap;
-use bevy::{prelude::*};
-use crate::common::{Animation, AnimationIndices, AnimationSet, AnimationState, AttackEvent, Collider, HitReactionTimer, InvincibilityTimer, Player, Stats, Velocity};
+use bevy::prelude::*;
+
+use crate::common::{
+    Animation, AnimationIndices, AnimationSet, AnimationState, AttackEvent, Collider,
+    HitReactionTimer, InvincibilityTimer, Item, Player, Stats, Velocity,
+};
 use crate::enemy::Enemy;
 
+/// Main player plugin, sets up resources and systems
 pub struct PlayerPlugin;
 
-/// Component used for managing animation timing and current frame
-#[derive(Component)]
-pub struct AnimationClock {
-    pub frame: usize,    // Current animation frame index
-    pub timer: Timer,    // Timer controlling the frame rate
+#[derive(Default)]
+pub struct Inventory {
+    pub items: Vec<Item>,
+    pub open: bool,
 }
 
-/// Timer used to control the player's attack cooldown
+#[derive(Resource, Default)]
+pub struct PlayerGoodies {
+    pub inv: Inventory,
+    pub money: u32,
+}
+
+/// Controls the animation frame timing and current frame
+#[derive(Component)]
+pub struct AnimationClock {
+    pub frame: usize,
+    pub timer: Timer,
+}
+
+/// Controls attack cooldown
 #[derive(Component)]
 pub struct PlayerAttackTimer {
     pub timer: Timer,
 }
 
-/// 4 movement directions for animation switching
+/// Cardinal directions for animation logic
 #[derive(Clone)]
 enum Direction {
     Up,
@@ -27,7 +44,7 @@ enum Direction {
     Right,
 }
 
-/// Represents different animation states (idle, running, attacking)
+/// Player movement state (idle, running, attacking)
 #[derive(Clone, Debug, PartialEq)]
 enum MovementState {
     Idle,
@@ -35,28 +52,29 @@ enum MovementState {
     Attack01,
 }
 
-/// Combines the player's direction and animation state
+/// Combined direction + state for animation switching
 #[derive(Component, Clone)]
 struct PlayerAnimationState {
     direction: Direction,
     state: MovementState,
 }
 
-
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_player)
+        app
+            .insert_resource(PlayerGoodies { ..Default::default() })
+            .add_systems(Startup, spawn_player)
             .add_systems(Update, (attack_player_system, control_player).chain());
     }
 }
 
-/// Spawns the player entity and initializes its components and animations
+/// Spawns the player entity and registers its animations, collider, stats, etc.
 fn spawn_player(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
-    // Load all textuares and layouts
+    // Load textures
     let idle_down = asset_server.load("Player/Sprites/IDLE/idle_down.png");
     let idle_up = asset_server.load("Player/Sprites/IDLE/idle_up.png");
     let idle_left = asset_server.load("Player/Sprites/IDLE/idle_left.png");
@@ -72,68 +90,52 @@ fn spawn_player(
     let attack_left = asset_server.load("Player/Sprites/ATTACK 1/attack1_left.png");
     let attack_right = asset_server.load("Player/Sprites/ATTACK 1/attack1_right.png");
 
+    // Define animation layout
+    let layout_8fps = texture_atlas_layouts.add(TextureAtlasLayout::from_grid(
+        UVec2::splat(96),
+        8,
+        1,
+        None,
+        None,
+    ));
 
-    // Texture atlas layout for animations (8 frames horizontally)
-    let layout_8fps = texture_atlas_layouts.add(TextureAtlasLayout::from_grid(UVec2::splat(96), 8, 1, None, None));
+    let indicies_8fps = AnimationIndices { first: 0, last: 7 };
+    let attack_indicies = AnimationIndices { first: 1, last: 4 };
 
-    let indicies_8fps = AnimationIndices {
-        first: 0,
-        last: 7
-    };
-
-    let attack_indicies = AnimationIndices {
-        first: 1,
-        last: 4
-    };
-
-    // Declare animations map ;3
+    // Define animation set using hashmap
     let anim_map = HashMap::from([
-
-        // Idle
         (AnimationState::IdleUp, (idle_up.clone(), layout_8fps.clone(), indicies_8fps.clone())),
         (AnimationState::IdleDown, (idle_down.clone(), layout_8fps.clone(), indicies_8fps.clone())),
         (AnimationState::IdleLeft, (idle_left.clone(), layout_8fps.clone(), indicies_8fps.clone())),
         (AnimationState::IdleRight, (idle_right.clone(), layout_8fps.clone(), indicies_8fps.clone())),
-        
-        // Run 
         (AnimationState::RunUp, (run_up.clone(), layout_8fps.clone(), indicies_8fps.clone())),
         (AnimationState::RunDown, (run_down.clone(), layout_8fps.clone(), indicies_8fps.clone())),
         (AnimationState::RunLeft, (run_left.clone(), layout_8fps.clone(), indicies_8fps.clone())),
-        (AnimationState::RunRight, (run_right.clone(), layout_8fps.clone(), indicies_8fps.clone())),        
-
-        // Attacks
+        (AnimationState::RunRight, (run_right.clone(), layout_8fps.clone(), indicies_8fps.clone())),
         (AnimationState::AttackUp, (attack_up.clone(), layout_8fps.clone(), attack_indicies.clone())),
         (AnimationState::AttackDown, (attack_down.clone(), layout_8fps.clone(), attack_indicies.clone())),
         (AnimationState::AttackLeft, (attack_left.clone(), layout_8fps.clone(), attack_indicies.clone())),
         (AnimationState::AttackRight, (attack_right.clone(), layout_8fps.clone(), attack_indicies.clone())),
     ]);
 
-    // declare animation set from map
     let set = AnimationSet { animations: anim_map };
 
-    // component responsible for animation managment
     let anim = Animation {
         set,
         state: AnimationState::IdleDown,
         timer: Timer::from_seconds(0.125, TimerMode::Once),
-        last_state: None
+        last_state: None,
     };
 
-    // Spawn the player with all necessary components
+    // Spawn player entity
     commands.spawn((
-        Sprite::from_atlas_image(
-            idle_down.clone(),
-            TextureAtlas {
-                layout: layout_8fps.clone().clone(),
-                index: 0,
-            },
-        ),
+        Sprite::from_atlas_image(idle_down.clone(), TextureAtlas { layout: layout_8fps.clone(), index: 0 }),
         Player,
-        Transform::from_scale(Vec3::splat(2.3)),              // Set size
-        Velocity(Vec3::ZERO),                                 // No initial velocity
-        Collider { radius: 30.0 },                            // Collider size
+        Transform::from_scale(Vec3::splat(2.3)),
+        Velocity(Vec3::ZERO),
+        Collider { radius: 30.0 },
         PlayerAttackTimer {
-            timer: Timer::from_seconds(0.320, TimerMode::Once), 
+            timer: Timer::from_seconds(0.320, TimerMode::Once),
         },
         Stats {
             hp: 100,
@@ -146,12 +148,11 @@ fn spawn_player(
         InvincibilityTimer {
             timer: Timer::from_seconds(0.3, TimerMode::Once),
         },
-        anim
+        anim,
     ));
 }
 
-
-/// Controls player input, movement, attack triggering and camera follow
+/// Handles keyboard input for movement, attack and camera follow
 fn control_player(
     time: Res<Time>,
     keyboard: Res<ButtonInput<KeyCode>>,
@@ -163,18 +164,24 @@ fn control_player(
     ), With<Player>>,
     mut camera_query: Query<&mut Transform, (With<Camera2d>, Without<Player>)>,
 ) {
-    if let Ok((mut velocity, mut player_transform, mut anim, mut attack_timer)) = player_query.single_mut() {
+    if let Ok((mut velocity, mut player_transform, mut anim, mut attack_timer)) =
+        player_query.single_mut()
+    {
         velocity.0 = Vec3::ZERO;
-
         let mut new_state = anim.state;
 
-        // Movement block if player is attacking
-        if matches!(anim.state, AnimationState::AttackDown | AnimationState::AttackUp | AnimationState::AttackLeft | AnimationState::AttackRight)
-            && !attack_timer.timer.finished()
+        // Block movement during attack
+        if matches!(
+            anim.state,
+            AnimationState::AttackDown
+                | AnimationState::AttackUp
+                | AnimationState::AttackLeft
+                | AnimationState::AttackRight
+        ) && !attack_timer.timer.finished()
         {
-            // Player attacking
+            // Attacking - skip movement
         } else {
-            // player move
+            // Move input
             if keyboard.pressed(KeyCode::KeyW) {
                 velocity.0.y += 1.0;
                 new_state = AnimationState::RunUp;
@@ -193,20 +200,19 @@ fn control_player(
             }
         }
 
-        // player attack
+        // Attack input
         if keyboard.pressed(KeyCode::Space) && attack_timer.timer.finished() {
             attack_timer.timer.reset();
             new_state = match anim.state {
                 AnimationState::RunUp | AnimationState::IdleUp => AnimationState::AttackUp,
                 AnimationState::RunDown | AnimationState::IdleDown => AnimationState::AttackDown,
-                AnimationState::RunLeft | AnimationState::IdleLeft => AnimationState::AttackLeft, 
+                AnimationState::RunLeft | AnimationState::IdleLeft => AnimationState::AttackLeft,
                 AnimationState::RunRight | AnimationState::IdleRight => AnimationState::AttackRight,
                 _ => AnimationState::AttackDown,
             };
-
-            velocity.0 = Vec3::ZERO; // Dont move
+            velocity.0 = Vec3::ZERO; // Prevent movement during attack
         } else if velocity.0.length_squared() == 0.0 {
-            // If don't move - idle depending on the last direction
+            // If not moving -> switch to idle
             new_state = match anim.state {
                 AnimationState::RunUp | AnimationState::AttackUp => AnimationState::IdleUp,
                 AnimationState::RunDown | AnimationState::AttackDown => AnimationState::IdleDown,
@@ -221,7 +227,7 @@ fn control_player(
         // Move player
         player_transform.translation += velocity.0 * time.delta_secs() * 200.0;
 
-        // Camera follow player
+        // Follow camera
         if let Ok(mut camera_transform) = camera_query.single_mut() {
             camera_transform.translation.x = player_transform.translation.x;
             camera_transform.translation.y = player_transform.translation.y;
@@ -229,14 +235,16 @@ fn control_player(
     }
 }
 
-
+/// Detects if any enemy is hit when the player attacks
 fn attack_player_system(
-    mut p_query: Query<(Entity, &Stats, &Transform, &Animation, &mut PlayerAttackTimer), With<Player>>, 
+    mut p_query: Query<(Entity, &Stats, &Transform, &Animation, &mut PlayerAttackTimer), With<Player>>,
     e_query: Query<(Entity, &Transform), With<Enemy>>,
     mut attack_events: EventWriter<AttackEvent>,
-    time: Res<Time>
+    time: Res<Time>,
 ) {
-    if let Ok((player, p_stats, p_transform, p_anim_state, mut p_attack_timer)) = p_query.single_mut() {
+    if let Ok((player, p_stats, p_transform, p_anim_state, mut p_attack_timer)) =
+        p_query.single_mut()
+    {
         p_attack_timer.timer.tick(time.delta());
 
         if !p_attack_timer.timer.just_finished() {
@@ -244,24 +252,25 @@ fn attack_player_system(
         }
 
         let player_translation = p_transform.translation;
-        let attack_range = 300.;
+        let attack_range = 300.0;
 
+        // Determine where the attack should hit based on direction
         let attack_offset = match p_anim_state.state {
             AnimationState::AttackUp => Vec3::Y * attack_range,
             AnimationState::AttackDown => -Vec3::Y * attack_range,
             AnimationState::AttackLeft => -Vec3::X * attack_range,
             AnimationState::AttackRight => Vec3::X * attack_range,
-            _ => Vec3::ZERO
+            _ => Vec3::ZERO,
         };
 
         let attack_loc = player_translation + attack_offset;
 
+        // Check all enemies within attack range
         for (enemy, e_transform) in e_query.iter() {
-
             if e_transform.translation.distance(attack_loc) < attack_range {
-                attack_events.write(AttackEvent { 
-                    attacker: player, 
-                    target: enemy, 
+                attack_events.write(AttackEvent {
+                    attacker: player,
+                    target: enemy,
                     damage: p_stats.attack,
                 });
             }

@@ -13,6 +13,7 @@ mod minnion;
 mod minnions_control;
 mod map;
 mod ui;
+mod npc;
 
 use ui::gui::GuiPlugin;
 use enemy::EnemyPlugin;
@@ -24,12 +25,18 @@ use minnion::MinnionsPlugin;
 use minnions_control::ControlMinnionsPlugin;
 use map::MapPlugin;
 use ui::inventory::InventoryPlugin;
+use npc::NpcPlugin;
 
+#[derive(Resource)]
+pub struct DialogWindow {
+    pub open: bool
+}
 fn main() {
     App::new()
+        .insert_resource(DialogWindow{ open: true })
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
         .add_plugins(TiledMapPlugin::default())
-        .add_plugins((PlayerPlugin, AnimationPlugin, CollisionPlugin, CombatPlugin, MinnionsPlugin, ControlMinnionsPlugin, MapPlugin, GuiPlugin, InventoryPlugin))
+        .add_plugins((PlayerPlugin, AnimationPlugin, CollisionPlugin, CombatPlugin, MinnionsPlugin, ControlMinnionsPlugin, MapPlugin, GuiPlugin, InventoryPlugin, NpcPlugin))
         .add_plugins(EnemyPlugin)
         .add_systems(Startup, setup)
         .add_event::<AttackEvent>()

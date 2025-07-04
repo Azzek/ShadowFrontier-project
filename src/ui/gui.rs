@@ -1,63 +1,62 @@
 use bevy::{
-    color::palettes::css::{DARK_CYAN},
+    color::palettes::css::DARK_CYAN,
     prelude::*,
     text::{FontSmoothing, LineHeight},
 };
 
 use crate::common::{Player, Stats};
 
+/// Plugin for GUI-related systems
 pub struct GuiPlugin;
 
-// Marker component for identifying the HP bar node
+/// Marker component for identifying the HP bar node
 #[derive(Component)]
-struct Hpbar; 
+struct Hpbar;
 
-// Add the setup and update_ui systems to the Update schedule
 impl Plugin for GuiPlugin {
     fn build(&self, app: &mut App) {
+        // Add GUI setup and update systems
         app.add_systems(Update, (setup, uptade_ui));
     }
 }
 
-// System to update the width of the HP bar based on player's current HP
+/// Updates the HP bar width based on the player's current HP
 fn uptade_ui(
-    mut query: Query<&mut Node, With<Hpbar>>, // Query for the HP bar UI node
-    player_query: Query<&Stats, With<Player>>,              // Query for the player's stats
+    mut query: Query<&mut Node, With<Hpbar>>,         // Query for the HP bar UI node
+    player_query: Query<&Stats, With<Player>>,        // Query for the player's stats
 ) {
     if let Ok(mut node) = query.single_mut() {
         if let Ok(p_stats) = player_query.single() {
-            if let Ok(stats) = player_query.single() {
-                if stats.max_hp > 0 {
-                    // Calculate the HP ratio and set the width of the HP bar accordingly
-                    let ratio = p_stats.hp as f32 / p_stats.max_hp as f32;
-                    node.width = Val::Px(ratio * 370.0); // 370 is the full width when HP is full
-                } else {
-                    node.width = Val::Px(0.0); // If max HP is zero, set width to 0
-                }
+            if p_stats.max_hp > 0 {
+                // Calculate the HP ratio and update the width accordingly
+                let ratio = p_stats.hp as f32 / p_stats.max_hp as f32;
+                node.width = Val::Px(ratio * 370.0); // Full width = 370px when HP is full
+            } else {
+                node.width = Val::Px(0.0); // No max HP – hide the bar
             }
         }
     }
 }
 
-// System to initialize the UI
+/// Initializes the GUI (runs once)
 fn setup(
-    mut commands: Commands,                            // Allows spawning entities
-    player_stats_query: Query<&Stats, With<Player>>,   // Query for the player's stats
-    asset_server: Res<AssetServer>,                    // Asset server to load fonts
-    mut has_spawned: Local<bool>,                      // Local flag to prevent reinitialization
+    mut commands: Commands,                             // Used to spawn UI entities
+    player_stats_query: Query<&Stats, With<Player>>,    // Get the player's stats
+    asset_server: Res<AssetServer>,                     // Load font assets
+    mut has_spawned: Local<bool>,                       // Prevents re-running this setup
 ) {
-    // If the UI has already been spawned or there is no player, do nothing
+    // Prevent duplicate UI creation or run if player is not ready
     if *has_spawned || player_stats_query.is_empty() {
         return;
     }
 
-    let player_stats = player_stats_query.single().unwrap(); // Get player stats (assumed safe here)
+    let player_stats = player_stats_query.single().unwrap();
     *has_spawned = true;
 
-    // Load the font for displaying text
+    // Load font
     let font = asset_server.load("fonts/Orbitron-Bold.ttf");
 
-    // Define the font style for UI text
+    // Define font settings for 2D text
     let text_font = TextFont {
         line_height: LineHeight::Px(4.0),
         font_smoothing: FontSmoothing::AntiAliased,
@@ -68,50 +67,50 @@ fn setup(
 
     let text_justification = JustifyText::Center;
 
-    // Spawn a 2D text element (currently shows placeholder text)
+    // Example: spawn placeholder 2D text
     commands.spawn((
-        Text2d::new("Placek Placek"),                      // Placeholder text
-        text_font.clone(),                             // Font style
-        TextLayout::new_with_justify(text_justification), // Centered text layout
-        TextColor(DARK_CYAN.into()),                   // Text color
+        Text2d::new("Placek Placek"),                       // Example name/text
+        text_font.clone(),                                  // Font settings
+        TextLayout::new_with_justify(text_justification),   // Center alignment
+        TextColor(DARK_CYAN.into()),                        // Color of the text
     ));
 
-    // Spawn the base node for the HP bar background
+    // Background node (screen-filling UI root)
     commands
-        .spawn( Node {
-            width: Val::Percent(100.0),                // Full-screen width
-            height: Val::Percent(100.0),               // Full-screen height
+        .spawn(Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
             align_items: AlignItems::Start,
             justify_content: JustifyContent::Start,
             ..default()
         })
         .with_children(|parent| {
-            // Spawn the border container for the HP bar
+            // Outer border of the HP bar
             parent.spawn((
                 Node {
-                    width: Val::Px(400.0),             // Total bar width
-                    height: Val::Px(50.0),             // Bar height
+                    width: Val::Px(400.0),
+                    height: Val::Px(50.0),
                     ..default()
                 },
                 Outline {
-                    width: Val::Px(4.0),               // Outline width
-                    color: DARK_CYAN.into(),           // Outline color
-                    offset: Val::Px(10.0),             // Outline offset
+                    width: Val::Px(4.0),
+                    color: DARK_CYAN.into(),
+                    offset: Val::Px(10.0),
                 },
-                BackgroundColor(Color::srgb(125.0, 125.0, 125.0)), // Background color (gray)
+                BackgroundColor(Color::srgb(125.0, 125.0, 125.0)), // Gray background
             ));
         })
         .with_children(|parent| {
-            // Spawn the actual fill part of the HP bar
+            // Actual red HP bar (fill)
             parent.spawn((
                 Node {
-                    width: Val::Px(player_stats.hp as f32 * 3.5), // Initial width based on HP
-                    height: Val::Px(40.0),                         // Fill height
-                    position_type: PositionType::Absolute,        // Positioned absolutely inside the container
+                    width: Val::Px(player_stats.hp as f32 * 3.5), // Initial width
+                    height: Val::Px(40.0),
+                    position_type: PositionType::Absolute,
                     ..default()
                 },
-                BackgroundColor(Color::srgb(125.0, 0.0, 0.0)), // Fill color (red)
-                Hpbar, // Marker component for later access
+                BackgroundColor(Color::srgb(125.0, 0.0, 0.0)), // Red bar color
+                Hpbar, // Marked for updates
             ));
         });
 }
