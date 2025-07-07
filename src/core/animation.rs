@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::common::Animation;
+use crate::core::common::Animation;
 
 pub struct AnimationPlugin;
 

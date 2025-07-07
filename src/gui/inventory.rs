@@ -5,7 +5,7 @@ use bevy::{
     text::{cosmic_text::ttf_parser::Style, LineHeight},
 };
 
-use crate::{common::Item, player::PlayerGoodies};
+use crate::{core::common::Item, player::player::PlayerGoodies};
 
 /// Marker component for item slots in UI
 #[derive(Component)]

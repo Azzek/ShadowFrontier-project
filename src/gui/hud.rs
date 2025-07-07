@@ -4,16 +4,16 @@ use bevy::{
     text::{FontSmoothing, LineHeight},
 };
 
-use crate::common::{Player, Stats};
+use crate::core::common::{Player, Stats};
 
 /// Plugin for GUI-related systems
-pub struct GuiPlugin;
+pub struct HudPlugin;
 
 /// Marker component for identifying the HP bar node
 #[derive(Component)]
 struct Hpbar;
 
-impl Plugin for GuiPlugin {
+impl Plugin for HudPlugin {
     fn build(&self, app: &mut App) {
         // Add GUI setup and update systems
         app.add_systems(Update, (setup, uptade_ui));

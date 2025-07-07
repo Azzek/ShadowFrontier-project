@@ -1,44 +1,37 @@
 
 use bevy::prelude::*;
-use crate::common::AttackEvent;
+use crate::core::common::AttackEvent;
 use bevy_ecs_tiled::prelude::*;
 
-mod enemy;
-mod common;
+mod core;
+mod gui;
+mod world;
 mod player;
-mod animation;
-mod collision;
-mod combat;
-mod minnion;
-mod minnions_control;
-mod map;
-mod ui;
-mod npc;
-
-use ui::gui::GuiPlugin;
-use enemy::EnemyPlugin;
-use player::PlayerPlugin;
-use animation::AnimationPlugin;
-use collision::CollisionPlugin;
-use combat::CombatPlugin;
-use minnion::MinnionsPlugin;
-use minnions_control::ControlMinnionsPlugin;
-use map::MapPlugin;
-use ui::inventory::InventoryPlugin;
-use npc::NpcPlugin;
 
 #[derive(Resource)]
 pub struct DialogWindow {
     pub open: bool
 }
+
 fn main() {
     App::new()
+        .add_systems(Startup, setup)
         .insert_resource(DialogWindow{ open: true })
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
         .add_plugins(TiledMapPlugin::default())
-        .add_plugins((PlayerPlugin, AnimationPlugin, CollisionPlugin, CombatPlugin, MinnionsPlugin, ControlMinnionsPlugin, MapPlugin, GuiPlugin, InventoryPlugin, NpcPlugin))
-        .add_plugins(EnemyPlugin)
-        .add_systems(Startup, setup)
+        .add_plugins((
+            player::player::PlayerPlugin,
+            core::animation::AnimationPlugin,
+            core::collision::CollisionPlugin, 
+            core::combat::CombatPlugin, 
+            world::minnions::minnion::MinnionsPlugin, 
+            world::minnions::control::ControlMinnionsPlugin, 
+            world::map::MapPlugin, 
+            gui::hud::HudPlugin, 
+            gui::inventory::InventoryPlugin, 
+            world::npc::NpcPlugin,
+            world::enemy::EnemyPlugin
+        ))
         .add_event::<AttackEvent>()
         // .add_systems(Update, debug)
         .run();

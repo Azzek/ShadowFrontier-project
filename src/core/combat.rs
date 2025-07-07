@@ -1,6 +1,5 @@
 use bevy::prelude::*;
-use crate::common::{HitReactionTimer, Stats};
-use crate::common::AttackEvent;
+use crate::core::common::{HitReactionTimer, Stats, AttackEvent};
 
 /// Plugin responsible for handling combat-related systems, like applying damage
 pub struct CombatPlugin;

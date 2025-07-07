@@ -1,2 +1,2 @@
-pub mod gui;
+pub mod hud;
 pub mod inventory;

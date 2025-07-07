@@ -1,6 +1,5 @@
-use bevy::{ecs::world, input::keyboard::{self, Key}, picking::window, prelude::*, state::commands, text::cosmic_text::ttf_parser::math, transform, window::PrimaryWindow};
-
-use crate::{common::MoveTo, minnion::{Minnion, MinnionMode}};
+use bevy::{prelude::*, window::PrimaryWindow};
+use crate::{core::common::MoveTo, world::minnions::minnion::{Minnion, MinnionMode}};
 
 #[derive(Resource, Default)]
 pub struct SelectionBox {

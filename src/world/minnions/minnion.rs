@@ -1,5 +1,5 @@
 use std::{ clone, time::Duration };
-use crate::{common::{Animation, AnimationIndices, AnimationSet, AnimationState, AttackEvent, Collider, HitReactionTimer, MoveTo, Player, Stats, Target}, enemy::Enemy};
+use crate::{core::common::{Animation, AnimationIndices, AnimationSet, AnimationState, AttackEvent, Collider, HitReactionTimer, MoveTo, Player, Stats, Target}, world::enemy::Enemy};
 use bevy::{platform::collections::HashMap, prelude::*, state::commands, window::PrimaryWindow};
 
 pub struct MinnionsPlugin;

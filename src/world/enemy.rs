@@ -1,8 +1,9 @@
 use bevy::{ platform::collections::HashMap, prelude::*, window::PrimaryWindow };
-use crate::{common::{
+use crate::{core::common::{
     Animation, AnimationIndices, AnimationSet, AnimationState, AttackEvent, Collider, HitReactionTimer, Player, Stats, Target
-}, minnion::Minnion};
-use std::{time::Duration};
+}, world::minnions::minnion::Minnion};
+
+use std::time::Duration;
 
 /// Enum to distinguish between different types of enemies 
 enum EnemyType {

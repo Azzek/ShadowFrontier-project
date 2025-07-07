@@ -1,6 +1,6 @@
-use bevy::{platform::collections::HashMap, prelude::*, state::commands};
+use bevy::{platform::collections::HashMap, prelude::*,};
 
-use crate::{common::{Item, Player}, DialogWindow};
+use crate::{core::common::{Item, Player}, DialogWindow};
 
 /// NPC roles (can be either a general NPC or a shopkeeper)
 #[derive(PartialEq, Clone)]

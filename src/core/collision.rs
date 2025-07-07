@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::common::Collider;
+use crate::core::common::Collider;
 
 /// A plugin that handles collision
 pub struct CollisionPlugin;

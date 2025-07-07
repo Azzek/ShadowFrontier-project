@@ -1,11 +1,11 @@
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 
-use crate::common::{
+use crate::core::common::{
     Animation, AnimationIndices, AnimationSet, AnimationState, AttackEvent, Collider,
     HitReactionTimer, InvincibilityTimer, Item, Player, Stats, Velocity,
 };
-use crate::enemy::Enemy;
+use crate::world::enemy::Enemy;
 
 /// Main player plugin, sets up resources and systems
 pub struct PlayerPlugin;
