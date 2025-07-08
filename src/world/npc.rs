@@ -1,27 +1,33 @@
 use bevy::{platform::collections::HashMap, prelude::*,};
 
-use crate::{core::common::{Item, Player}, DialogWindow};
+use crate::{core::common::{Item, Player}, player::player::PlayerGoodies, DialogWindow};
 
 /// NPC roles (can be either a general NPC or a shopkeeper)
 #[derive(PartialEq, Clone)]
-enum NpcRole {
+pub enum NpcRole {
     Shop,
     Npc,
 }
 
 /// Marker component for identifying the dialog UI of a shop
 #[derive(Component)]
-struct ShopDialog;
+pub struct ShopDialog;
 
 /// Container for NPC offers (shop inventory), wrapped in a component
 #[derive(Clone, Component)]
-struct NpcOffers {
+pub struct NpcOffers {
     map: HashMap<String, Item>,
+}
+
+
+#[derive(Component)]
+pub struct ShopItemButton {
+    item: Item,
 }
 
 /// Main NPC component, attached to entities
 #[derive(Component, Clone)]
-struct Npc {
+pub struct Npc {
     name: String,
     loc: Vec3,
     sprite_path: String,
@@ -31,7 +37,7 @@ struct Npc {
 
 /// Resource storing all NPC definitions
 #[derive(Resource)]
-struct NpcList {
+pub struct NpcList {
     list: HashMap<String, Npc>,
 }
 
@@ -44,7 +50,7 @@ impl Plugin for NpcPlugin {
             // Load and spawn NPCs on startup
             .add_systems(Startup, (load_npcs, spawn_npcs).chain())
             // Update system for shop interaction
-            .add_systems(Update, npc_shop_interaction);
+            .add_systems(Update, (npc_shop_interaction, shop_item_click_system, refresh_shop_ui_system, shop_auto_close_system));
     }
 }
 
@@ -59,9 +65,9 @@ fn load_npcs(mut commands: Commands) {
             role: NpcRole::Shop,
             offer: Some(NpcOffers {
                 map: HashMap::from([
-                    (String::from("1"), Item { id: String::from("1"), name: String::from("Zadymiacz") }),
-                    (String::from("2"), Item { id: String::from("2"), name: String::from("Zadymiacz") }),
-                    (String::from("3"), Item { id: String::from("3"), name: String::from("Zadymiacz") }),
+                    (String::from("1"), Item { id: String::from("1"), name: String::from("Zadymiacz"), cost:50 }),
+                    (String::from("2"), Item { id: String::from("2"), name: String::from("Zadymiacz"), cost:50  }),
+                    (String::from("3"), Item { id: String::from("3"), name: String::from("Zadymiacz") ,cost:50 }),
                 ]),
             }),
         },
@@ -116,7 +122,7 @@ fn spawn_npcs(
 /// System that triggers when player presses `E` near an NPC with offers
 fn npc_shop_interaction(
     keyboard: Res<ButtonInput<KeyCode>>,
-    q_npc: Query<(&Npc, &Transform, Option<&NpcOffers>)>,
+    q_npc: Query<(Entity, &Transform, Option<&NpcOffers>), With<Npc>>,
     q_shop: Query<Entity, With<ShopDialog>>,
     q_player: Query<&Transform, With<Player>>,
     mut diag_window: ResMut<DialogWindow>,
@@ -129,11 +135,41 @@ fn npc_shop_interaction(
             for (npc, npc_tf, maybe_offers) in q_npc.iter() {
                 // Check proximity between player and NPC
                 if p_tf.translation.distance(npc_tf.translation) < 150.0 {
-                    diag_window.open = !diag_window.open;
+                    diag_window.open = true;
+                    diag_window.current_shop_npc = Some(npc);
+                }
+            }
+        }
+    }
+}
 
-                    if diag_window.open {
-                        // Spawn shop dialog background
-                        commands.spawn((
+
+fn refresh_shop_ui_system(
+    diag_window: Res<DialogWindow>,
+    offers_query: Query<&NpcOffers>,
+    npc_query: Query<&Npc>,
+    q_trassform: Query<&Transform, With<Npc>>,
+    shop_ui_query: Query<Entity, With<ShopDialog>>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+) {
+    if !diag_window.open {
+        return;
+    }
+
+    if let Some(npc_entity) = diag_window.current_shop_npc {
+        if let Ok(offers) = offers_query.get(npc_entity) {
+            if let Ok(shop_ui_entity) = shop_ui_query.single() {
+                // Usuń stare oferty (można to lepiej zrobić przez tagi np. ShopItemRow)
+                commands.entity(shop_ui_entity).despawn();
+            }
+        
+                // Tworzenie od nowa oferty — jak w npc_shop_interaction
+                let slot_image_handle: Handle<Image> = asset_server.load("inventory/single-slot.png");
+
+                let items: Vec<_> = offers.map.values().collect();
+
+                                        commands.spawn((
                             Node {
                                 position_type: PositionType::Absolute,
                                 justify_content: JustifyContent::Center,
@@ -164,7 +200,6 @@ fn npc_shop_interaction(
                                 ),
                             ))
                             .with_children(|container| {
-                                if let Some(offers) = maybe_offers {
                                     let slot_image_handle = asset_server.load("inventory/single-slot.png");
 
                                     // Convert HashMap values to a Vec for chunking
@@ -188,13 +223,14 @@ fn npc_shop_interaction(
                                             ..Default::default()
                                         })
                                         .with_children(|row| {
-                                            for _item in chunk {
+                                            for item in chunk {
                                                 // Each slot in the row
-                                                row.spawn(Node {
+                                                row.spawn(((Node {
                                                     justify_content: JustifyContent::Center,
                                                     align_items: AlignItems::Center,
                                                     ..Default::default()
-                                                })
+                                                }, Button, ShopItemButton{ item: (*item).clone()}),
+                                                ))
                                                 .with_children(|slot| {
                                                     slot.spawn((
                                                         ImageNode {
@@ -203,21 +239,82 @@ fn npc_shop_interaction(
                                                         },
                                                         Transform::from_scale(Vec3::splat(3.5))
                                                     ));
+                                                    slot.spawn(Node {
+                                                        position_type: PositionType::Absolute,
+                                                        justify_content: JustifyContent::Center,
+                                                        align_items: AlignItems::Center,
+                                                        ..Default::default()
+                                                    })
+                                                    .with_children(|id_node| {
+                                                        id_node.spawn((
+                                                            Text::new(item.id.to_string()),
+                                                            TextFont {
+                                                                font: asset_server
+                                                                    .load("fonts/Orbitron-Bold.ttf"),
+                                                                font_size: 25.0,
+                                                                ..default()
+                                                            },
+                                                        ));
+                                                    });
                                                 });
                                             }
                                         });
                                     }
-                                }
                             });
                         });
-                    } else {
-                        // If shop was open and now needs closing, despawn dialog
-                        if let Ok(shop) = q_shop.single() {
-                            commands.entity(shop).despawn();
-                        }
-                    }
+        }
+    }
+}
+
+
+fn shop_auto_close_system(
+    mut diag_window: ResMut<DialogWindow>,
+    q_player: Query<&Transform, With<Player>>,
+    q_npc: Query<&Transform, With<Npc>>,
+    q_shop: Query<Entity, With<ShopDialog>>,
+    mut commands: Commands,
+) {
+    if !diag_window.open {
+        return;
+    }
+
+    let Ok(player_tf) = q_player.single() else {
+        return;
+    };
+
+    if let Some(npc_entity) = diag_window.current_shop_npc {
+        if let Ok(npc_tf) = q_npc.get(npc_entity) {
+            let distance = player_tf.translation.distance(npc_tf.translation);
+            if distance > 150.0 {
+                diag_window.open = false;
+                diag_window.current_shop_npc = None;
+
+                if let Ok(shop_dialog) = q_shop.single() {
+                    commands.entity(shop_dialog).despawn();
                 }
             }
         }
     }
 }
+
+
+fn shop_item_click_system(
+    mut interaction_query: Query<(&Interaction, &ShopItemButton), Changed<Interaction>>,
+    mut p_inv: ResMut<PlayerGoodies>,
+    mut offers_query: Query<&mut NpcOffers>,
+) {
+    for (interaction, button) in &mut interaction_query {
+        if *interaction == Interaction::Pressed {
+
+            p_inv.inv.items.push(button.item.clone());
+
+            for mut offers in &mut offers_query {
+                if offers.map.contains_key(&button.item.id) {
+                    offers.map.remove(&button.item.id);
+                    break;
+                }
+            }
+        }
+    }
+}
+

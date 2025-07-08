@@ -10,13 +10,14 @@ mod player;
 
 #[derive(Resource)]
 pub struct DialogWindow {
-    pub open: bool
+    pub open: bool,
+    pub current_shop_npc: Option<Entity>,
 }
 
 fn main() {
     App::new()
         .add_systems(Startup, setup)
-        .insert_resource(DialogWindow{ open: true })
+        .insert_resource(DialogWindow{ open: true, current_shop_npc: None })
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
         .add_plugins(TiledMapPlugin::default())
         .add_plugins((

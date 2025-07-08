@@ -89,10 +89,10 @@ fn spawn_minnion(
         spawn_timer.0.reset();
 
         if let Ok(cursor_pos) = world_pos {
-            let idle_tex: Handle<Image> = asset_server.load("Soldier/Soldier/Soldier-Idle.png");
-            let walk_tex: Handle<Image> = asset_server.load("Soldier/Soldier/Soldier-Walk.png");
-            let atk_tex: Handle<Image> = asset_server.load("Soldier/Soldier/Soldier-Attack01.png");
-            let hurt_tex: Handle<Image> = asset_server.load("Soldier/Soldier/Soldier-Hurt.png");
+            let idle_tex: Handle<Image> = asset_server.load("Entities/Soldier/Soldier/Soldier-Idle.png");
+            let walk_tex: Handle<Image> = asset_server.load("Entities/Soldier/Soldier/Soldier-Walk.png");
+            let atk_tex: Handle<Image> = asset_server.load("Entities/Soldier/Soldier/Soldier-Attack01.png");
+            let hurt_tex: Handle<Image> = asset_server.load("Entities/Soldier/Soldier/Soldier-Hurt.png");
             
             // Load textures and layouts
             let anim_layout   = texture_atlas_layouts.add(TextureAtlasLayout::from_grid(UVec2::splat(100), 6, 1, None, None));

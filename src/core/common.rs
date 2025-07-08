@@ -9,6 +9,7 @@ enum MinionType {
 pub struct Item {
     pub id: String,
     pub name: String,
+    pub cost: u32
 }
 
 #[derive(Component, Default)]

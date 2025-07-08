@@ -75,20 +75,20 @@ fn spawn_player(
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
     // Load textures
-    let idle_down = asset_server.load("Player/Sprites/IDLE/idle_down.png");
-    let idle_up = asset_server.load("Player/Sprites/IDLE/idle_up.png");
-    let idle_left = asset_server.load("Player/Sprites/IDLE/idle_left.png");
-    let idle_right = asset_server.load("Player/Sprites/IDLE/idle_right.png");
+    let idle_down = asset_server.load("Entities/Player/Sprites/Idle/idle_down.png");
+    let idle_up = asset_server.load("Entities/Player/Sprites/Idle/idle_up.png");
+    let idle_left = asset_server.load("Entities/Player/Sprites/Idle/idle_left.png");
+    let idle_right = asset_server.load("Entities/Player/Sprites/Idle/idle_right.png");
 
-    let run_down = asset_server.load("Player/Sprites/RUN/run_down.png");
-    let run_up = asset_server.load("Player/Sprites/RUN/run_up.png");
-    let run_left = asset_server.load("Player/Sprites/RUN/run_left.png");
-    let run_right = asset_server.load("Player/Sprites/RUN/run_right.png");
+    let run_down = asset_server.load("Entities/Player/Sprites/Run/run_down.png");
+    let run_up = asset_server.load("Entities/Player/Sprites/Run/run_up.png");
+    let run_left = asset_server.load("Entities/Player/Sprites/Run/run_left.png");
+    let run_right = asset_server.load("Entities/Player/Sprites/Run/run_right.png");
 
-    let attack_up = asset_server.load("Player/Sprites/ATTACK 1/attack1_up.png");
-    let attack_down = asset_server.load("Player/Sprites/ATTACK 1/attack1_down.png");
-    let attack_left = asset_server.load("Player/Sprites/ATTACK 1/attack1_left.png");
-    let attack_right = asset_server.load("Player/Sprites/ATTACK 1/attack1_right.png");
+    let attack_up = asset_server.load("Entities/Player/Sprites/Attack1/attack1_up.png");
+    let attack_down = asset_server.load("Entities/Player/Sprites/Attack1/attack1_down.png");
+    let attack_left = asset_server.load("Entities/Player/Sprites/Attack1/attack1_left.png");
+    let attack_right = asset_server.load("Entities/Player/Sprites/Attack1/attack1_right.png");
 
     // Define animation layout
     let layout_8fps = texture_atlas_layouts.add(TextureAtlasLayout::from_grid(

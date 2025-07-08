@@ -74,10 +74,10 @@ fn spawn_enemy(
 
     
     // Load textures for different animations
-    let walk_tex = asset_server.load("Orc/Orc/Orc-Walk.png");
-    let atk_tex  = asset_server.load("Orc/Orc/Orc-Attack01.png");
-    let idle_tex = asset_server.load("Orc/Orc/Orc-Idle.png");
-    let hurt_tex = asset_server.load("Orc/Orc/Orc-Hurt.png");
+    let walk_tex = asset_server.load("Entities/Entities/Orc/Orc/Orc-Walk.png");
+    let atk_tex  = asset_server.load("Entities/Orc/Orc/Orc-Attack01.png");
+    let idle_tex = asset_server.load("Entities/Orc/Orc/Orc-Idle.png");
+    let hurt_tex = asset_server.load("Entities/Orc/Orc/Orc-Hurt.png");
     
     let hurt_layout = texture_atlas_layouts.add(TextureAtlasLayout::from_grid(UVec2::splat(100), 4, 1, None, None));
   

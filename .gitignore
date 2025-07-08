@@ -1,8 +1,10 @@
 /target/
 /**/*.rs.bk
 **/Cargo.lock
-/assets/*
+# /assets/*
 .vscode/
 /build/
 .env
 /target/doc/
+*.tiled-project
+*.tiled-session
